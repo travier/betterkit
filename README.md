@@ -42,3 +42,19 @@ Result=Ask
 ```
 
 [systemd-run]: https://www.freedesktop.org/software/systemd/man/systemd-run.html
+
+## Current status
+
+Currently only working with the session bus:
+
+```
+$ cargo run -- -v --user
+[INFO  deadend] Received: Signal NameAcquired from org.freedesktop.DBus
+[INFO  deadend] Received: Signal NameAcquired from org.freedesktop.DBus
+[INFO  deadend] Writing MOTD with reason: Test
+[INFO  deadend] Successfully wrote MOTD
+```
+
+```
+$ busctl --user call org.betterkit /org/betterkit/betterkit1 org.betterkit.betterkit1 Run as 2 "ls" "-alh"
+```
