@@ -56,5 +56,6 @@ $ cargo run -- -v --user
 ```
 
 ```
-$ busctl --user call org.betterkit /org/betterkit/betterkit1 org.betterkit.betterkit1 Run as 2 "ls" "-alh"
+$ busctl --user call --json=pretty -- org.betterkit /org/betterkit/betterkit1 org.betterkit.betterkit1 Run as 2 "ls" "-alh" | jq -r ".data[0]"
+$ busctl --user call --json=pretty -- org.betterkit /org/betterkit/betterkit1 org.betterkit.betterkit1 Get t 6 | jq -r ".data[0]"
 ```

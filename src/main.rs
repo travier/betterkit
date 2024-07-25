@@ -4,13 +4,36 @@
 
 #[macro_use]
 extern crate log;
+extern crate serde;
 
 use log::LevelFilter;
 use structopt::StructOpt;
 use zbus::{Connection, Result};
-
-
 use zbus::interface;
+use serde::{Deserialize, Serialize};
+// use serde_json::Result;
+use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize)]
+struct Transaction {
+    id: u64,
+    argv: Vec<String>,
+    status: String,
+    stdout: String,
+    stderr: String,
+}
+
+impl Transaction {
+    fn new(id: u64, argv: Vec<String>) -> Transaction {
+        Transaction {
+            id,
+            argv,
+            status: String::from("New"),
+            stdout: String::new(),
+            stderr: String::new(),
+        }
+    }
+}
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "betterkit", about = "Betterkit daemon")]
@@ -27,14 +50,33 @@ struct Opt {
     user: bool,
 }
 
-
 struct BetterKit {
-/*     motd_path: String */
+    transactions: HashMap<u64, Transaction>,
+    next_transaction_id: u64,
 }
 
 #[interface(name = "org.betterkit.betterkit1")]
 impl BetterKit {
-    async fn Run(&self, argv: Vec<&str>) -> String {
+    async fn Run(&mut self, argv: Vec<&str>) -> String {
+        info!("Creating transaction: {}", self.next_transaction_id);
+        let argv_string = argv.into_iter().map(|x| String::from(x)).collect();
+        let transaction = Transaction::new (self.next_transaction_id, argv_string);
+        self.transactions.insert(self.next_transaction_id, transaction);
+        self.next_transaction_id += 1;
+        format!("{{ \"id\": \"{}\" }}", self.next_transaction_id - 1)
+    }
+
+    async fn Get(&mut self, id: u64) -> String {
+        info!("Getting transaction: {}", id);
+        match self.transactions.get(&id) {
+            Some(t) => format!("{{ \"id\": \"{}\" }}", t.id),
+            None => format!("No transaction found for: {}", id),
+        }        
+    }
+}
+
+/*
+fn run() {
         info!("Running: \"{}\"", argv.join("\" \""));
         use std::process::Command;
         let mut cmd = Command::new("systemd-run");
@@ -44,9 +86,8 @@ impl BetterKit {
         }
         let output = cmd.output()
                 .expect("failed to execute process");
-        String::from_utf8(output.stdout).expect("non utf8 output")
-    }
-}
+        String::from_utf8(output.stdout).expect("non utf8 output")}
+*/
 
 #[async_std::main]
 async fn main() -> Result<()> {
@@ -69,7 +110,11 @@ async fn main() -> Result<()> {
         Connection::system().await?
     };
 
-    connection.object_server().at("/org/betterkit/betterkit1", BetterKit {}).await?;
+    let context = BetterKit {
+        transactions: HashMap::new(),
+        next_transaction_id: 0,
+    };
+    connection.object_server().at("/org/betterkit/betterkit1", context).await?;
 
     connection.request_name("org.betterkit").await?;
 
